@@ -1,7 +1,10 @@
-GET http://localhost:8080/categories
+GET https://kasirajah.zeabur.app/categories
 
 ###
-POST http://localhost:8080/categories
+GET https://kasirajah.zeabur.app/categories/1
+
+###
+POST https://kasirajah.zeabur.app/categories
 Content-Type: application/json
 
 {
@@ -10,10 +13,10 @@ Content-Type: application/json
 }
 
 ###
-GET http://localhost:8080/categories/2
+GET https://kasirajah.zeabur.app/categories/5
 
 ###
-PUT http://localhost:8080/categories/1
+PUT https://kasirajah.zeabur.app/categories/1
 Content-Type: application/json
 
 {
@@ -22,7 +25,7 @@ Content-Type: application/json
 }
 
 ###
-DELETE http://localhost:8080/categories/1
+DELETE https://kasirajah.zeabur.app/categories/1
 
 ###
-GET http://localhost:8080/health
+GET https://kasirajah.zeabur.app/health
