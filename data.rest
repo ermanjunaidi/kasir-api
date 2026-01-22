@@ -1,0 +1,28 @@
+GET http://localhost:8080/categories
+
+###
+POST http://localhost:8080/categories
+Content-Type: application/json
+
+{
+    "nama": "Alat Tulis",
+    "description": "Perlengkapan alat tulis kantor"
+}
+
+###
+GET http://localhost:8080/categories/2
+
+###
+PUT http://localhost:8080/categories/1
+Content-Type: application/json
+
+{
+    "nama": "Elektronik Murah",
+    "description": "Elektronik harga terjangkau"
+}
+
+###
+DELETE http://localhost:8080/categories/1
+
+###
+GET http://localhost:8080/health
