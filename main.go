@@ -1,160 +1,79 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
-	"strconv"
+	"os"
 	"strings"
+
+	"kasir-api/database"
+	"kasir-api/handlers"
+	"kasir-api/repositories"
+	"kasir-api/services"
+
+	"github.com/spf13/viper"
 )
 
-type Category struct {
-	ID          int    `json:"id"`
-	Nama        string `json:"nama"`
-	Description string `json:"description"`
+type Config struct {
+	Port   string `mapstructure:"PORT"`
+	DBConn string `mapstructure:"DB_CONN"`
 }
 
-var categories = []Category{
-	{ID: 1, Nama: "Elektronik", Description: "Barang-barang elektronik"},
-	{ID: 2, Nama: "Fesyen", Description: "Pakaian dan aksesoris"},
-	{ID: 3, Nama: "Makanan", Description: "Makanan ringan dan berat"},
+func initConfig() Config {
+	viper.AutomaticEnv()
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
+	if _, err := os.Stat(".env"); err == nil {
+		viper.SetConfigFile(".env")
+		if err := viper.ReadInConfig(); err != nil {
+			log.Println("Error reading .env file:", err)
+		}
+	}
+
+	return Config{
+		Port:   viper.GetString("PORT"),
+		DBConn: viper.GetString("DB_CONN"),
+	}
 }
 
 func main() {
-	http.HandleFunc("/health", healthHandler)
-	http.HandleFunc("/categories", categoriesHandler)
-	http.HandleFunc("/categories/", categoryIDHandler)
+	config := initConfig()
 
-	fmt.Println("Server is running at localhost:8080")
-	err := http.ListenAndServe(":8080", nil)
-	if err != nil {
-		fmt.Println("Failed to start server:", err)
+	if config.DBConn == "" {
+		log.Fatal("DB_CONN is not set in environment or .env file")
 	}
-}
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"status":  "OK",
-		"message": "API Running",
+	if config.Port == "" {
+		config.Port = "8080"
+	}
+
+	// Setup database
+	db, err := database.InitDB(config.DBConn)
+	if err != nil {
+		log.Fatal("Failed to initialize database:", err)
+	}
+	defer db.Close()
+
+	// Initialize Repository, Service, and Handler
+	productRepo := repositories.NewProductRepository(db)
+	productService := services.NewProductService(productRepo)
+	productHandler := handlers.NewProductHandler(productService)
+
+	// Routes
+	http.HandleFunc("/api/produk", productHandler.HandleProducts)
+	http.HandleFunc("/api/produk/", productHandler.HandleProductByID)
+
+	// Health check
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"status":"OK","message":"API Running"}`))
 	})
-}
 
-func categoriesHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "GET" {
-		listCategories(w, r)
-	} else if r.Method == "POST" {
-		createCategory(w, r)
-	} else {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	addr := "0.0.0.0:" + config.Port
+	fmt.Printf("Server is running at http://%s\n", addr)
+
+	if err := http.ListenAndServe(addr, nil); err != nil {
+		log.Fatal("Failed to start server:", err)
 	}
-}
-
-func categoryIDHandler(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path == "/categories" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	if r.Method == "GET" {
-		getCategoryByID(w, r)
-	} else if r.Method == "PUT" {
-		updateCategory(w, r)
-	} else if r.Method == "DELETE" {
-		deleteCategory(w, r)
-	} else {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-	}
-}
-
-func listCategories(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(categories)
-}
-
-func createCategory(w http.ResponseWriter, r *http.Request) {
-	var categoryBaru Category
-	err := json.NewDecoder(r.Body).Decode(&categoryBaru)
-	if err != nil {
-		http.Error(w, "Invalid request", http.StatusBadRequest)
-		return
-	}
-
-	categoryBaru.ID = len(categories) + 1
-	categories = append(categories, categoryBaru)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(categoryBaru)
-}
-
-func getCategoryByID(w http.ResponseWriter, r *http.Request) {
-	idStr := strings.TrimPrefix(r.URL.Path, "/categories/")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(w, "Invalid Category ID", http.StatusBadRequest)
-		return
-	}
-
-	for _, c := range categories {
-		if c.ID == id {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(c)
-			return
-		}
-	}
-
-	http.Error(w, "Category not found", http.StatusNotFound)
-}
-
-func updateCategory(w http.ResponseWriter, r *http.Request) {
-	idStr := strings.TrimPrefix(r.URL.Path, "/categories/")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(w, "Invalid Category ID", http.StatusBadRequest)
-		return
-	}
-
-	var updateData Category
-	err = json.NewDecoder(r.Body).Decode(&updateData)
-	if err != nil {
-		http.Error(w, "Invalid request", http.StatusBadRequest)
-		return
-	}
-
-	for i := range categories {
-		if categories[i].ID == id {
-			updateData.ID = id
-			categories[i] = updateData
-
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(updateData)
-			return
-		}
-	}
-
-	http.Error(w, "Category not found", http.StatusNotFound)
-}
-
-func deleteCategory(w http.ResponseWriter, r *http.Request) {
-	idStr := strings.TrimPrefix(r.URL.Path, "/categories/")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(w, "Invalid Category ID", http.StatusBadRequest)
-		return
-	}
-
-	for i, c := range categories {
-		if c.ID == id {
-			categories = append(categories[:i], categories[i+1:]...)
-
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]string{
-				"message": "sukses delete category",
-			})
-			return
-		}
-	}
-
-	http.Error(w, "Category not found", http.StatusNotFound)
 }

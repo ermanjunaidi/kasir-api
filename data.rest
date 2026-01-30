@@ -1,31 +1,46 @@
-GET https://kasirajah.zeabur.app/categories
+@baseUrl = http://localhost:8080
 
 ###
-GET https://kasirajah.zeabur.app/categories/1
+GET {{baseUrl}}/health
 
 ###
-POST https://kasirajah.zeabur.app/categories
+GET {{baseUrl}}/api/produk
+
+###
+POST {{baseUrl}}/api/produk
 Content-Type: application/json
 
 {
-    "nama": "Alat Tulis",
-    "description": "Perlengkapan alat tulis kantor"
+    "name": "Es Jeruk Peras",
+    "price": 8000,
+    "stock": 100,
+    "category_id": 1
 }
 
 ###
-GET https://kasirajah.zeabur.app/categories/5
-
-###
-PUT https://kasirajah.zeabur.app/categories/1
+POST {{baseUrl}}/api/produk
 Content-Type: application/json
 
 {
-    "nama": "Elektronik Murah",
-    "description": "Elektronik harga terjangkau"
+    "name": "Nasi Goreng Spesial",
+    "price": 20000,
+    "stock": 30,
+    "category_id": 2
 }
 
 ###
-DELETE https://kasirajah.zeabur.app/categories/1
+GET {{baseUrl}}/api/produk/1
 
 ###
-GET https://kasirajah.zeabur.app/health
+PUT {{baseUrl}}/api/produk/1
+Content-Type: application/json
+
+{
+    "name": "Kopi Hitam (Update)",
+    "price": 12000,
+    "stock": 80,
+    "category_id": 1
+}
+
+###
+DELETE {{baseUrl}}/api/produk/1
